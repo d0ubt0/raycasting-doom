@@ -9,12 +9,16 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
-use crate::game::Game;
+use crate::{
+    config::{self, AppConfig},
+    game::Game,
+};
 
 pub struct App {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
     game: Game,
+    config: AppConfig,
 }
 
 impl App {
@@ -23,12 +27,15 @@ impl App {
             game,
             window: None,
             pixels: None,
+            config: Default::default(),
         }
     }
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        event_loop.listen_device_events(winit::event_loop::DeviceEvents::Always);
+
         let window = Arc::new(
             event_loop
                 .create_window(
@@ -76,13 +83,37 @@ impl ApplicationHandler for App {
                 let height = texture.height();
                 let frame = pixels.frame_mut();
 
+                for chunk in frame.chunks_exact_mut(4) {
+                    chunk[0] = 0x00; // R (Rojo)
+                    chunk[1] = 0x00; // G (Verde)
+                    chunk[2] = 0x00; // B (Azul)
+                    chunk[3] = 0xFF; // A (Alfa/Opacidad total)
+                }
+
                 self.game
                     .player_vision(width as usize, height as usize, frame);
 
                 pixels.render().unwrap();
             }
 
+            WindowEvent::KeyboardInput { event, .. } => {
+                self.game.get_keyboard_input(event.physical_key);
+            }
+
             _ => {}
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        if let winit::event::DeviceEvent::MouseMotion { delta } = event {
+            let (dx, dy) = delta;
+
+            self.game.handle_mouse_look(dx, dy);
         }
     }
 

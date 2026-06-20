@@ -1,4 +1,5 @@
 mod app;
+mod config;
 mod game;
 
 use winit::event_loop::EventLoop;
@@ -32,7 +33,7 @@ fn main() {
     let player = Player {
         position: Vector2D { x: 7.5, y: 4.5 },
         direction: Vector2D { x: -1.0, y: -1.0 },
-        speed: 0.1,
+        speed: 4.0,
         fov: 90.0,
     };
 

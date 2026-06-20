@@ -1,4 +1,56 @@
+use winit::keyboard::{KeyCode, PhysicalKey};
+
+use crate::config::GameConfig;
 use std::ops::{Add, Mul};
+
+pub struct ControlMap {
+    pub forward: KeyCode,
+    pub backward: KeyCode,
+    pub left: KeyCode,
+    pub right: KeyCode,
+    pub turn_left: KeyCode,
+    pub turn_right: KeyCode,
+    pub sprint: KeyCode,
+}
+
+impl Default for ControlMap {
+    fn default() -> Self {
+        Self {
+            forward: KeyCode::KeyW,
+            backward: KeyCode::KeyS,
+            left: KeyCode::KeyA,
+            right: KeyCode::KeyD,
+            turn_left: KeyCode::ArrowLeft,
+            turn_right: KeyCode::ArrowRight,
+            sprint: KeyCode::ShiftLeft,
+        }
+    }
+}
+
+enum Action {
+    Forward,
+    Backward,
+    Left,
+    Right,
+    TurnLeft,
+    TurnRight,
+    Sprint,
+}
+
+impl ControlMap {
+    pub fn action(&self, key: KeyCode) -> Option<Action> {
+        match key {
+            k if k == self.forward => Some(Action::Forward),
+            k if k == self.backward => Some(Action::Backward),
+            k if k == self.left => Some(Action::Left),
+            k if k == self.right => Some(Action::Right),
+            k if k == self.turn_left => Some(Action::TurnLeft),
+            k if k == self.turn_right => Some(Action::TurnRight),
+            k if k == self.sprint => Some(Action::Sprint),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct Vector2D {
@@ -67,14 +119,29 @@ pub struct Player {
     pub fov: f64,
 }
 
+impl Player {
+    fn move_player(&mut self, direction: Vector2D, delta_time: f64) {
+        self.position = self.position + (self.speed * delta_time) * direction;
+    }
+
+    fn change_direction(&mut self, dx: f64, delta_time: f64) {
+        self.direction = self.direction.rotate(dx * delta_time)
+    }
+}
+
 pub struct Game {
     player: Player,
     map: Vec<Vec<u8>>,
+    control_map: ControlMap,
 }
 
 impl Game {
     pub fn new(player: Player, map: Vec<Vec<u8>>) -> Self {
-        Self { player, map }
+        Self {
+            player,
+            map,
+            control_map: Default::default(),
+        }
     }
 
     pub fn player_vision(&mut self, width: usize, height: usize, frame: &mut [u8]) {
@@ -136,5 +203,40 @@ impl Game {
         }
 
         None
+    }
+
+    pub fn get_keyboard_input(&mut self, physical_key: PhysicalKey) {
+        let delta_time = 0.1;
+
+        if let PhysicalKey::Code(key) = physical_key {
+            if let Some(action) = self.control_map.action(key) {
+                match action {
+                    Action::Forward => self.player.move_player(self.player.direction, delta_time),
+                    Action::Backward => self
+                        .player
+                        .move_player(self.player.direction.rotate(180.0), delta_time),
+                    Action::Left => self
+                        .player
+                        .move_player(self.player.direction.rotate(-90.0), delta_time),
+                    Action::Right => self
+                        .player
+                        .move_player(self.player.direction.rotate(90.0), delta_time),
+                    Action::TurnLeft => {
+                        self.player.change_direction(-100.0, 0.1);
+                    }
+                    Action::TurnRight => {
+                        self.player.change_direction(100.0, 0.1);
+                    }
+                    Action::Sprint => {}
+                }
+            }
+        }
+    }
+
+    pub fn handle_mouse_look(&mut self, x: f64, y: f64) {
+        let delta_time = 1.0;
+        let vector = Vector2D { x, y };
+
+        self.player.change_direction(vector.x, delta_time);
     }
 }

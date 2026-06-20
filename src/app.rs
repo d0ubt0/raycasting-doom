@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::WindowEvent,
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     window::{Window, WindowAttributes, WindowId},
 };
@@ -19,6 +19,7 @@ pub struct App {
     pixels: Option<Pixels<'static>>,
     game: Game,
     config: AppConfig,
+    last_time: Instant,
 }
 
 impl App {
@@ -28,6 +29,7 @@ impl App {
             window: None,
             pixels: None,
             config: Default::default(),
+            last_time: Instant::now(),
         }
     }
 }
@@ -41,7 +43,7 @@ impl ApplicationHandler for App {
                 .create_window(
                     WindowAttributes::default()
                         .with_title("Mi aplicación")
-                        .with_inner_size(LogicalSize::new(800.0, 600.0)),
+                        .with_inner_size(LogicalSize::new(1600.0, 1200.0)),
                 )
                 .unwrap(),
         );
@@ -84,11 +86,15 @@ impl ApplicationHandler for App {
                 let frame = pixels.frame_mut();
 
                 for chunk in frame.chunks_exact_mut(4) {
-                    chunk[0] = 0x00; // R (Rojo)
-                    chunk[1] = 0x00; // G (Verde)
-                    chunk[2] = 0x00; // B (Azul)
-                    chunk[3] = 0xFF; // A (Alfa/Opacidad total)
+                    chunk[0] = 0x00;
+                    chunk[1] = 0x00;
+                    chunk[2] = 0x00;
+                    chunk[3] = 0xFF;
                 }
+
+                let delta_time = self.last_time.elapsed().as_secs_f64().min(0.1);
+                self.last_time = Instant::now();
+                self.game.update(delta_time);
 
                 self.game
                     .player_vision(width as usize, height as usize, frame);
@@ -97,7 +103,8 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                self.game.get_keyboard_input(event.physical_key);
+                let pressed = matches!(event.state, ElementState::Pressed);
+                self.game.get_keyboard_input(event.physical_key, pressed);
             }
 
             _ => {}
